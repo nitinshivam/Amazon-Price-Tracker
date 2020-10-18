@@ -131,18 +131,27 @@ bot.onText(/\/track/, async(msg) => {
 
         let autocheck = setInterval(async() => {
 
-            for (let i = 0; i < userdetail.urls.length; i++) {
+            let userdetail = await user.findOne({ userId: chatId });
 
-                let latestPrice = await getPrice(userdetail.urls[i]);
-                if (latestPrice == currentPrice[i]) {
-                    console.log(`latest Price ${latestPrice}`);
-                    console.log(`current Price ${currentPrice[i]}`);
-                    continue;
-                } else {
-                    bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
-                    clearInterval(autocheck);
+            if (userdetail.urls.length > 0) {
+
+                for (let i = 0; i < userdetail.urls.length; i++) {
+
+                    let latestPrice = await getPrice(userdetail.urls[i]);
+                    if (latestPrice == currentPrice[i]) {
+                        console.log(`latest Price ${latestPrice}`);
+                        console.log(`current Price ${currentPrice[i]}`);
+                        continue;
+                    } else {
+                        bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
+                        await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
+                        currentPrice.splice(i, 1);
+                    }
                 }
+            } else {
+                clearInterval(autocheck);
             }
+
 
         }, 60000);
     }
