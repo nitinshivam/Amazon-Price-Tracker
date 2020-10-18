@@ -46,6 +46,8 @@ async function getPrice(url) {
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
+    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to amazon price tracker.`);
+
     user.findOne({ userId: chatId })
         .then((data) => {
             if (data === null) {
