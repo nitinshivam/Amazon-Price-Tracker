@@ -4,6 +4,7 @@ const cheerio = require('cheerio');
 const TelegramBot = require('node-telegram-bot-api');
 const dotenv = require('dotenv').config();
 const token = process.env.BOT_TOKEN;
+const MONGO_URI = process.env.MONGO_URI;
 
 mongoose.connect(MONGO_URI, {
     useNewUrlParser: true,
@@ -61,7 +62,7 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/add (.+)/, async(msg, match) => {
 
     const chatId = msg.chat.id;
-    const resp = match[1]; // the captured "whatever"
+    const resp = match[1];
 
 
     user.findOneAndUpdate({ userId: chatId }, { $push: { urls: resp } }, ((err, data) => {
@@ -75,37 +76,56 @@ bot.onText(/\/add (.+)/, async(msg, match) => {
 
 });
 
+bot.onText(/\/urls/, async(msg) => {
+
+    const chatId = msg.chat.id;
+    let text = "";
+    let userdetail = await user.findOne({ userId: chatId });
+    for (let i = 0; i < userdetail.urls.length; i++) {
+
+        text = `${text}${i+1}. ${userdetail.urls[i]}\n`;
+    }
+    await bot.sendMessage(chatId, text);
+
+});
+
 
 bot.onText(/\/track/, async(msg) => {
     let currentPrice = [];
     const chatId = msg.chat.id;
     let userdetail = await user.findOne({ userId: chatId });
     console.log(userdetail);
-    for (let i = 0; i < userdetail.urls.length; i++) {
 
-        let price = await getPrice(userdetail.urls[i]);
-        currentPrice.push(price);
-        console.log(currentPrice);
-    }
+    if (userdetail.urls.length == 0) {
+        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add (your url here).")
+    } else {
+        bot.sendMessage(chatId, "Tracking started");
 
-    let autocheck = setInterval(async() => {
 
         for (let i = 0; i < userdetail.urls.length; i++) {
 
-            let latestPrice = await getPrice(userdetail.urls[i]);
-            if (latestPrice == currentPrice[i]) {
-                console.log(`latest Price ${latestPrice}`);
-                console.log(`current Price ${currentPrice[i]}`);
-                continue;
-            } else {
-                bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
-                clearInterval(autocheck);
-            }
+            let price = await getPrice(userdetail.urls[i]);
+            currentPrice.push(price);
+            console.log(currentPrice);
         }
 
-    }, 10000);
 
+
+        let autocheck = setInterval(async() => {
+
+            for (let i = 0; i < userdetail.urls.length; i++) {
+
+                let latestPrice = await getPrice(userdetail.urls[i]);
+                if (latestPrice == currentPrice[i]) {
+                    console.log(`latest Price ${latestPrice}`);
+                    console.log(`current Price ${currentPrice[i]}`);
+                    continue;
+                } else {
+                    bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
+                    clearInterval(autocheck);
+                }
+            }
+
+        }, 10000);
+    }
 })
-
-
-// getData(url);
