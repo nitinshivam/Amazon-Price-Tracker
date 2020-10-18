@@ -66,7 +66,6 @@ bot.onText(/\/add (.+)/, async(msg, match) => {
     const chatId = msg.chat.id;
     const resp = match[1];
 
-
     user.findOneAndUpdate({ userId: chatId }, { $push: { urls: resp } }, ((err, data) => {
         if (err) {
             console.log(err);
@@ -75,19 +74,36 @@ bot.onText(/\/add (.+)/, async(msg, match) => {
         }
     }))
 
-
 });
+
+bot.onText(/\/clearurls/, async(msg) => {
+    const chatId = msg.chat.id;
+    await user.updateOne({ userId: chatId }, { $unset: { urls: 1 } }, ((err, data) => {
+        if (err) {
+            console.log(err);
+        } else {
+            bot.sendMessage(chatId, "Urls deleted successfully");
+        }
+    }))
+})
 
 bot.onText(/\/urls/, async(msg) => {
 
     const chatId = msg.chat.id;
     let text = "";
     let userdetail = await user.findOne({ userId: chatId });
-    for (let i = 0; i < userdetail.urls.length; i++) {
+    console.log(userdetail);
+    console.log(userdetail.urls);
+    if (userdetail.urls.length == 0) {
+        await bot.sendMessage(chatId, "No urls added yet send /add <url> to add");
+    } else {
 
-        text = `${text}${i+1}. ${userdetail.urls[i]}\n`;
+        for (let i = 0; i < userdetail.urls.length; i++) {
+
+            text = `${text}${i + 1}. ${userdetail.urls[i]}\n`;
+        }
+        await bot.sendMessage(chatId, text);
     }
-    await bot.sendMessage(chatId, text);
 
 });
 
