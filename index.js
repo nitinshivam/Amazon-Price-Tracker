@@ -39,7 +39,7 @@ async function getPrice(url) {
     });
 
     const $ = cheerio.load(res.data);
-    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '');
+    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '');
     return price;
 }
 
