@@ -20,7 +20,8 @@ const userSchema = new mongoose.Schema({
         unique: true
     },
     urls: {
-        type: Array
+        type: Array,
+        trim: true
     }
 });
 
@@ -46,7 +47,7 @@ async function getPrice(url) {
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to amazon price tracker.`);
+    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to amazon price tracker bot.`);
 
     user.findOne({ userId: chatId })
         .then((data) => {
@@ -146,6 +147,7 @@ bot.onText(/\/track/, async(msg) => {
                         bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
                         await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
                         currentPrice.splice(i, 1);
+                        console.log(currentPrice);
                     }
                 }
             } else {
