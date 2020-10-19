@@ -139,7 +139,7 @@ bot.onText(/\/track/, async(msg) => {
                 for (let i = 0; i < userdetail.urls.length; i++) {
 
                     let latestPrice = await getPrice(userdetail.urls[i]);
-                    if (latestPrice == currentPrice[i]) {
+                    if (latestPrice => currentPrice[i]) {
                         console.log(`latest Price ${latestPrice}`);
                         console.log(`current Price ${currentPrice[i]}`);
                         continue;
