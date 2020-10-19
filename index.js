@@ -158,3 +158,55 @@ bot.onText(/\/track/, async(msg) => {
         }, 60000);
     }
 })
+
+async function getStock(url) {
+    const res = await axios.get(url, {
+        headers: {
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36"
+        }
+    });
+
+    const $ = cheerio.load(res.data);
+    const stock = $('#availability > span').text().trim();
+    return stock;
+}
+
+bot.onText(/\/notify/, async(msg, match) => {
+
+    const chatId = msg.chat.id;
+
+    let userdetail = await user.findOne({ userId: chatId });
+    console.log(userdetail);
+
+    if (userdetail.urls.length == 0) {
+        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add (your url here).")
+    } else {
+        bot.sendMessage(chatId, "Checking stock");
+
+
+        let autocheck = setInterval(async() => {
+
+            let userdetail = await user.findOne({ userId: chatId });
+
+            if (userdetail.urls.length > 0) {
+
+                for (let i = 0; i < userdetail.urls.length; i++) {
+
+                    let stock = await getStock(userdetail.urls[i]);
+                    if (stock == "Currently unavailable.") {
+                        console.log(stock);
+                        continue;
+                    } else {
+                        bot.sendMessage(chatId, `Stock status update: ${stock} ${userdetail.urls[i]}`);
+                        await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
+                        console.log(stock);
+                    }
+                }
+            } else {
+                clearInterval(autocheck);
+            }
+
+
+        }, 60000);
+    }
+})
