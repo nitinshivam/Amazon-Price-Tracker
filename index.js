@@ -211,6 +211,6 @@ bot.onText(/\/notify/, async(msg, match) => {
             }
 
 
-        }, 5000);
+        }, 60000);
     }
 })
