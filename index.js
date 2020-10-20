@@ -32,7 +32,8 @@ const user = mongoose.model('url', userSchema, 'users');
 const bot = new TelegramBot(token, { polling: true });
 
 
-async function getPrice(url) {
+async function getData(url) {
+    let data = {};
     const res = await axios.get(url, {
         headers: {
             "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36"
@@ -40,14 +41,20 @@ async function getPrice(url) {
     });
 
     const $ = cheerio.load(res.data);
-    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '');
-    return price;
+    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '') || "Not avaliable.";
+    const stock = $('#availability > span').text().trim();
+    const name = $('#productTitle').text().trim();
+    return data = {
+        "name": name,
+        "price": price,
+        "stock": stock
+    };
 }
 
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to amazon price tracker bot.`);
+    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to <b>Amazon price tracker bot.</b>Send /help for command details and for any further query contact <a href="tg://user?id=635671352">here</a>.`, { parse_mode: "HTML" });
 
     user.findOne({ userId: chatId })
         .then((data) => {
@@ -62,16 +69,24 @@ bot.onText(/\/start/, (msg) => {
 
 })
 
+bot.onText(/\/help/, (msg) => {
+    const chatId = msg.chat.id;
+
+    bot.sendMessage(chatId, `/add - Add new url\n/urls - See your urls\n/track - Start price tracker\n/clearurls - Clear all urls\n/notify - Start stock tracker\n<b>Note:</b> After adding url send desired command /track or /stock to start tracking.`, { parse_mode: "HTML" });
+
+})
+
 bot.onText(/\/add (.+)/, async(msg, match) => {
 
     const chatId = msg.chat.id;
     const resp = match[1];
 
+    let detail = await getData(resp);
     user.findOneAndUpdate({ userId: chatId }, { $push: { urls: resp } }, ((err, data) => {
         if (err) {
             console.log(err);
         } else {
-            bot.sendMessage(chatId, "Link added sucessfully");
+            bot.sendMessage(chatId, `<i>Product:</i> ${detail.name}\n<i>Current Price:</i> ${detail.price}\n<b>Added sucessfully.</b>`, { parse_mode: "HTML" });
         }
     }))
 
@@ -96,7 +111,7 @@ bot.onText(/\/urls/, async(msg) => {
     console.log(userdetail);
     console.log(userdetail.urls);
     if (userdetail.urls.length == 0) {
-        await bot.sendMessage(chatId, "No urls added yet send /add <url> to add");
+        await bot.sendMessage(chatId, "No urls added yet.Add them by sending /add <url>.");
     } else {
 
         for (let i = 0; i < userdetail.urls.length; i++) {
@@ -116,15 +131,15 @@ bot.onText(/\/track/, async(msg) => {
     console.log(userdetail);
 
     if (userdetail.urls.length == 0) {
-        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add (your url here).")
+        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add <url>.")
     } else {
         bot.sendMessage(chatId, "Tracking started");
 
 
         for (let i = 0; i < userdetail.urls.length; i++) {
 
-            let price = await getPrice(userdetail.urls[i]);
-            currentPrice.push(price);
+            let data = await getData(userdetail.urls[i]);
+            currentPrice.push(data.price);
             console.log(currentPrice);
         }
 
@@ -138,13 +153,13 @@ bot.onText(/\/track/, async(msg) => {
 
                 for (let i = 0; i < userdetail.urls.length; i++) {
 
-                    let latestPrice = await getPrice(userdetail.urls[i]);
-                    if (latestPrice => currentPrice[i]) {
-                        console.log(`latest Price ${latestPrice}`);
+                    let data = await getData(userdetail.urls[i]);
+                    if (data.price >= currentPrice[i]) {
+                        console.log(`latest Price ${data.price}`);
                         console.log(`current Price ${currentPrice[i]}`);
                         continue;
                     } else {
-                        bot.sendMessage(chatId, `Price dropped to ${latestPrice} of ${userdetail.urls[i]}`);
+                        bot.sendMessage(chatId, `<i>Product:</i> ${data.name}\n<i>Current price:</i> ${data.price}\n<i>Last checked Price:</i> <b>${currentPrice[i]}</b>\n <i>Url:</i> ${userdetail.urls[i]}`, { parse_mode: "HTML" });
                         await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
                         currentPrice.splice(i, 1);
                         console.log(currentPrice);
@@ -159,17 +174,6 @@ bot.onText(/\/track/, async(msg) => {
     }
 })
 
-async function getStock(url) {
-    const res = await axios.get(url, {
-        headers: {
-            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36"
-        }
-    });
-
-    const $ = cheerio.load(res.data);
-    const stock = $('#availability > span').text().trim();
-    return stock;
-}
 
 bot.onText(/\/notify/, async(msg, match) => {
 
@@ -179,7 +183,7 @@ bot.onText(/\/notify/, async(msg, match) => {
     console.log(userdetail);
 
     if (userdetail.urls.length == 0) {
-        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add (your url here).")
+        bot.sendMessage(chatId, "No urls added yet.Add them by sending /add <url>.")
     } else {
         bot.sendMessage(chatId, "Checking stock");
 
@@ -192,14 +196,14 @@ bot.onText(/\/notify/, async(msg, match) => {
 
                 for (let i = 0; i < userdetail.urls.length; i++) {
 
-                    let stock = await getStock(userdetail.urls[i]);
-                    if (stock == "Currently unavailable.") {
-                        console.log(stock);
+                    let data = await getData(userdetail.urls[i]);
+                    if (data.stock == "Currently unavailable.") {
+                        console.log(data.stock);
                         continue;
                     } else {
-                        bot.sendMessage(chatId, `Stock status update: ${stock} ${userdetail.urls[i]}`);
+                        bot.sendMessage(chatId, `<i>Stock status:</i> <b>${data.stock}</b> \n<i>Product:</i> ${data.name} \n<i>Price:</i> ${data.price} \n<i>Url:</i> ${userdetail.urls[i]}`, { parse_mode: "HTML" });
                         await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
-                        console.log(stock);
+                        console.log(data.stock);
                     }
                 }
             } else {
@@ -207,6 +211,6 @@ bot.onText(/\/notify/, async(msg, match) => {
             }
 
 
-        }, 60000);
+        }, 5000);
     }
 })
