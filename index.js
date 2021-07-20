@@ -29,7 +29,9 @@ const user = mongoose.model('url', userSchema, 'users');
 
 
 
-const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, {
+    polling: true
+});
 
 
 async function getData(url) {
@@ -41,12 +43,16 @@ async function getData(url) {
     });
 
     const $ = cheerio.load(res.data);
+    const mrp = $('span.priceBlockStrikePriceString').text().trim();
     const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '') || "Not avaliable.";
     const stock = $('#availability > span').text().trim();
     const name = $('#productTitle').text().trim();
+    const you_save = $('td.priceBlockSavingsString').text().trim().split('\n').slice(-1).pop();
     return data = {
         "name": name,
+        "mrp": mrp,
         "price": price,
+        "you_save": you_save,
         "stock": stock
     };
 }
@@ -54,12 +60,18 @@ async function getData(url) {
 bot.onText(/\/start/, (msg) => {
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to <b>Amazon price tracker bot.</b>Send /help for command details and for any further query contact <a href="tg://user?id=635671352">here</a>.`, { parse_mode: "HTML" });
+    bot.sendMessage(chatId, `Welcome ${msg.chat.first_name} to <b>Amazon price tracker bot.</b>Send /help for command details and for any further query contact <a href="tg://user?id=635671352">here</a>.`, {
+        parse_mode: "HTML"
+    });
 
-    user.findOne({ userId: chatId })
+    user.findOne({
+            userId: chatId
+        })
         .then((data) => {
             if (data === null) {
-                const insert = new user({ userId: chatId });
+                const insert = new user({
+                    userId: chatId
+                });
                 insert.save().then(() => {
                     console.log(insert);
                 });
@@ -72,29 +84,45 @@ bot.onText(/\/start/, (msg) => {
 bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
 
-    bot.sendMessage(chatId, `/add - Add new url\n/urls - See your urls\n/track - Start price tracker\n/clearurls - Clear all urls\n/notify - Start stock tracker\n<b>Note:</b> After adding url send desired command /track or /stock to start tracking.`, { parse_mode: "HTML" });
+    bot.sendMessage(chatId, `/add - Add new url\n/urls - See your urls\n/track - Start price tracker\n/clearurls - Clear all urls\n/notify - Start stock tracker\n<b>Note:</b> After adding url send desired command /track or /stock to start tracking.`, {
+        parse_mode: "HTML"
+    });
 
 })
 
-bot.onText(/\/add (.+)/, async(msg, match) => {
+bot.onText(/\/add (.+)/, async (msg, match) => {
 
     const chatId = msg.chat.id;
     const resp = match[1];
 
     let detail = await getData(resp);
-    user.findOneAndUpdate({ userId: chatId }, { $push: { urls: resp } }, ((err, data) => {
+    user.findOneAndUpdate({
+        userId: chatId
+    }, {
+        $push: {
+            urls: resp
+        }
+    }, ((err, data) => {
         if (err) {
             console.log(err);
         } else {
-            bot.sendMessage(chatId, `<i>Product:</i> ${detail.name}\n<i>Current Price:</i> ${detail.price}\n<b>Added sucessfully.</b>`, { parse_mode: "HTML" });
+            bot.sendMessage(chatId, `<i>Product:</i> ${detail.name}\n<i>Current Price:</i> ${detail.price}\n<b>Added sucessfully.</b>`, {
+                parse_mode: "HTML"
+            });
         }
     }))
 
 });
 
-bot.onText(/\/clearurls/, async(msg) => {
+bot.onText(/\/clearurls/, async (msg) => {
     const chatId = msg.chat.id;
-    await user.updateOne({ userId: chatId }, { $unset: { urls: 1 } }, ((err, data) => {
+    await user.updateOne({
+        userId: chatId
+    }, {
+        $unset: {
+            urls: 1
+        }
+    }, ((err, data) => {
         if (err) {
             console.log(err);
         } else {
@@ -103,11 +131,13 @@ bot.onText(/\/clearurls/, async(msg) => {
     }))
 })
 
-bot.onText(/\/urls/, async(msg) => {
+bot.onText(/\/urls/, async (msg) => {
 
     const chatId = msg.chat.id;
     let text = "";
-    let userdetail = await user.findOne({ userId: chatId });
+    let userdetail = await user.findOne({
+        userId: chatId
+    });
     console.log(userdetail);
     console.log(userdetail.urls);
     if (userdetail.urls.length == 0) {
@@ -124,10 +154,12 @@ bot.onText(/\/urls/, async(msg) => {
 });
 
 
-bot.onText(/\/track/, async(msg) => {
+bot.onText(/\/track/, async (msg) => {
     let currentPrice = [];
     const chatId = msg.chat.id;
-    let userdetail = await user.findOne({ userId: chatId });
+    let userdetail = await user.findOne({
+        userId: chatId
+    });
     console.log(userdetail);
 
     if (userdetail.urls.length == 0) {
@@ -145,9 +177,11 @@ bot.onText(/\/track/, async(msg) => {
 
 
 
-        let autocheck = setInterval(async() => {
+        let autocheck = setInterval(async () => {
 
-            let userdetail = await user.findOne({ userId: chatId });
+            let userdetail = await user.findOne({
+                userId: chatId
+            });
 
             if (userdetail.urls.length > 0) {
 
@@ -159,8 +193,16 @@ bot.onText(/\/track/, async(msg) => {
                         console.log(`current Price ${currentPrice[i]}`);
                         continue;
                     } else {
-                        bot.sendMessage(chatId, `<i>Product:</i> ${data.name}\n<i>Current price:</i> ${data.price}\n<i>Last checked Price:</i> <b>${currentPrice[i]}</b>\n <i>Url:</i> ${userdetail.urls[i]}`, { parse_mode: "HTML" });
-                        await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
+                        bot.sendMessage(chatId, `<i>Product:</i> ${data.name}\n<i>Current price:</i> ${data.price}\n<i>Last checked Price:</i> <b>${currentPrice[i]}</b>\n <i>Url:</i> ${userdetail.urls[i]}`, {
+                            parse_mode: "HTML"
+                        });
+                        await user.updateOne({
+                            userId: chatId
+                        }, {
+                            $pull: {
+                                urls: userdetail.urls[i]
+                            }
+                        });
                         currentPrice.splice(i, 1);
                         console.log(currentPrice);
                     }
@@ -175,11 +217,13 @@ bot.onText(/\/track/, async(msg) => {
 })
 
 
-bot.onText(/\/notify/, async(msg, match) => {
+bot.onText(/\/notify/, async (msg, match) => {
 
     const chatId = msg.chat.id;
 
-    let userdetail = await user.findOne({ userId: chatId });
+    let userdetail = await user.findOne({
+        userId: chatId
+    });
     console.log(userdetail);
 
     if (userdetail.urls.length == 0) {
@@ -188,9 +232,11 @@ bot.onText(/\/notify/, async(msg, match) => {
         bot.sendMessage(chatId, "Checking stock");
 
 
-        let autocheck = setInterval(async() => {
+        let autocheck = setInterval(async () => {
 
-            let userdetail = await user.findOne({ userId: chatId });
+            let userdetail = await user.findOne({
+                userId: chatId
+            });
 
             if (userdetail.urls.length > 0) {
 
@@ -201,8 +247,16 @@ bot.onText(/\/notify/, async(msg, match) => {
                         console.log(data.stock);
                         continue;
                     } else {
-                        bot.sendMessage(chatId, `<i>Stock status:</i> <b>${data.stock}</b> \n<i>Product:</i> ${data.name} \n<i>Price:</i> ${data.price} \n<i>Url:</i> ${userdetail.urls[i]}`, { parse_mode: "HTML" });
-                        await user.updateOne({ userId: chatId }, { $pull: { urls: userdetail.urls[i] } });
+                        bot.sendMessage(chatId, `<i>Stock status:</i> <b>${data.stock}</b> \n<i>Product:</i> ${data.name} \n<i>Price:</i> ${data.price} \n<i>Url:</i> ${userdetail.urls[i]}`, {
+                            parse_mode: "HTML"
+                        });
+                        await user.updateOne({
+                            userId: chatId
+                        }, {
+                            $pull: {
+                                urls: userdetail.urls[i]
+                            }
+                        });
                         console.log(data.stock);
                     }
                 }
