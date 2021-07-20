@@ -44,8 +44,8 @@ async function getData(url) {
 
     const $ = cheerio.load(res.data);
     const mrp = $('span.priceBlockStrikePriceString').text().trim();
-    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '') || "Not avaliable.";
-    const stock = $('#availability > span').text().trim();
+    const price = $("#priceblock_ourprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_dealprice").text().replace(/[^0-9.]+/g, '') || $("#priceblock_saleprice").text() || "";
+    const stock = $('#add-to-cart-button').attr('title') || $("#availability > span").text().trim() === "In stock." ? "Add to Shopping Cart" : "";
     const name = $('#productTitle').text().trim();
     const you_save = $('td.priceBlockSavingsString').text().trim().split('\n').slice(-1).pop();
     return data = {
